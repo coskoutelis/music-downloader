@@ -1,2 +1,2 @@
 Flask==2.3.3
-yt-dlp==2024.0.0
+yt-dlp
