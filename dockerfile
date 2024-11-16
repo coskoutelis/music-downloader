@@ -1,20 +1,23 @@
-# Use an official Python image optimized for Raspberry Pi
-FROM python:3.9-slim
+# Use the official Python image
+FROM python:3.10-slim
 
-# Set the working directory in the container
+# Set working directory
 WORKDIR /app
 
-# Copy only requirements first (to leverage Docker cache)
-COPY requirements.txt requirements.txt
-
-# Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy the rest of the application code
+# Copy project files to the container
 COPY . .
 
-# Expose the port the app runs on
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Expose the port Flask will run on
 EXPOSE 5000
 
-# Run the Flask application
+# Run the Flask app
 CMD ["python", "app.py"]

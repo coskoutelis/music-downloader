@@ -5,7 +5,7 @@ services:
     build:
       context: . # The directory containing the Dockerfile
     ports:
-      - "5000:5000" # Map port 5000 of the host to port 5000 in the container
+      - "5001:5001" # Map port 5000 of the host to port 5000 in the container
     volumes:
       - ./downloads:/app/downloads # Map a local downloads folder to the container
     restart: unless-stopped # Automatically restart the container unless it is explicitly stopped
