@@ -1,31 +1,65 @@
-from flask import Flask, render_template, request, redirect, url_for
-import yt_dlp
+from flask import Flask, render_template, request, Response
+from pytubefix import YouTube, Search
+import os
+import time
 
 app = Flask(__name__)
 
-# Function to download song from YouTube
-def download_song(song_title):
-    ydl_opts = {
-        'format': 'bestaudio/best',  # Select best audio quality
-        'postprocessors': [{
-            'key': 'FFmpegAudioConvertor',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
-        'outtmpl': './downloads/%(title)s.%(ext)s',  # Output directory for downloaded song
-    }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        # Search and download the song
-        search_query = f"ytsearch:{song_title}"
-        ydl.download([search_query])
+DOWNLOAD_FOLDER = "downloads"
+if not os.path.exists(DOWNLOAD_FOLDER):
+    os.makedirs(DOWNLOAD_FOLDER)
 
-@app.route('/', methods=['GET', 'POST'])
+
+def download_song(song_url):
+    try:
+        yt = YouTube(song_url)
+        audio_stream = yt.streams.filter(only_audio=True).first()
+        download_path = audio_stream.download(output_path=DOWNLOAD_FOLDER)
+        return f"Downloaded: {os.path.basename(download_path)}"
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+def get_youtube_url(song_title):
+    try:
+        search_results = Search(song_title).videos
+        if search_results:
+            return search_results[0].watch_url
+        else:
+            return None
+    except Exception as e:
+        return None
+
+
+def remove_timestamps(text):
+    lines = text.strip().split("\n")
+    return [line.split(" ", 1)[-1] for line in lines if " " in line]
+
+
+@app.route('/')
 def index():
-    if request.method == 'POST':
-        song_title = request.form['song_title']
-        download_song(song_title)  # Call the download function
-        return redirect(url_for('index'))
     return render_template('index.html')
 
+
+@app.route('/progress')
+def progress():
+    songs_str = request.args.get('songs_str', '')
+    song_titles = remove_timestamps(songs_str)
+
+    def generate():
+        for song_title in song_titles:
+            youtube_url = get_youtube_url(song_title)
+            if youtube_url:
+                yield f"data: Found URL for '{song_title}': {youtube_url}\n\n"
+                download_result = download_song(youtube_url)
+                yield f"data: {download_result}\n\n"
+            else:
+                yield f"data: No URL found for '{song_title}'\n\n"
+            time.sleep(1)  # Simulate delay for testing
+        yield "data: All downloads completed\n\n"
+
+    return Response(generate(), mimetype="text/event-stream")
+
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    app.run(debug=True)
